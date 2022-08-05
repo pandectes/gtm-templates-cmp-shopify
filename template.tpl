@@ -114,6 +114,12 @@ ___TEMPLATE_PARAMETERS___
     "name": "wait_for_update",
     "displayName": "wait_for_update (Leave empty for 0)",
     "simpleValueType": true
+  },
+  {
+    "type": "CHECKBOX",
+    "name": "customEvent",
+    "checkboxText": "Push custom event",
+    "simpleValueType": true
   }
 ]
 
@@ -125,8 +131,8 @@ const log = require('logToConsole');
 // log('data =', data);
 
 const setDefaultConsentState = require('setDefaultConsentState');
+const updateConsentState = require('updateConsentState');
 const getCookieValues = require('getCookieValues');
-const callInWindow = require('callInWindow');
 const gtagSet = require('gtagSet');
 const fromBase64 = require('fromBase64');
 const JSON = require('JSON');
@@ -140,6 +146,60 @@ const ALLOW = 'allow';
 const DENY = 'deny';
 
 const dataLayerPush = createQueue('dataLayer');
+const consentListenersPush = createQueue('pandectesConsentListeners');
+const isNil = (value) => value === null || value === undefined;
+
+const getStorageFromPreferences = (preferences, consentType) => {
+  let output = null;
+  if (!isNil(preferences)) {
+    const p1 = (preferences & 1) === 0;
+    const p2 = (preferences & 2) === 0;
+    const p4 = (preferences & 4) === 0;
+    output = {
+      ad_storage: p4 ? GRANTED : DENIED,
+      analytics_storage: p2 ? GRANTED : DENIED,
+      personalization_storage: p1 ? GRANTED : DENIED,
+      functionality_storage: p1 ? GRANTED : DENIED
+    };
+    
+    if (data.customEvent && (consentType === 'new' || consentType === 'revoke')) {
+      let eventStatus = consentType;
+      if (consentType === 'new') {
+        if (preferences === 7) {
+          eventStatus = 'deny';
+        } else if (preferences === 0) {
+          eventStatus = 'allow';
+        } else {
+          eventStatus = 'mixed';
+        }
+      }
+      dataLayerPush({
+        event: CUSTOM_GMT_EVENT,
+        pandectes_status: eventStatus,
+        pandectes_categories: {
+          C000: ALLOW,
+          C001: p1 ? ALLOW: DENY,
+          C002: p2 ? ALLOW : DENY,
+          C003: p4 ? ALLOW : DENY
+        }
+      });
+    }
+      
+    
+  }
+  return output;
+};
+
+const onUserConsent = (config) => {
+  log(config);
+  if (config.consentType === 'stored' || config.consentType === 'default') {
+    return;
+  }
+  const consentModeStates = getStorageFromPreferences(config.preferences, config.consentType);
+  if (consentModeStates) {
+    updateConsentState(consentModeStates);
+  }
+};
 
 const main = (data) => {
   // Set default consent state(s)
@@ -154,37 +214,18 @@ const main = (data) => {
   };
   
   if (data.wait_for_update) {
-    log(data.wait_for_update);
     defaultData.wait_for_update = makeNumber(data.wait_for_update); 
   }
   
   const settings = getCookieValues(COOKIE_NAME);
-  if(settings) {
-    if (settings.length) {
-      const cookieValue = JSON.parse(fromBase64(settings[0]));
-      const preferencesSet = cookieValue.preferences !== undefined && cookieValue.preferences !== null;
-      const preferences = preferencesSet ? cookieValue.preferences : 7;
-      const status = cookieValue.status;
-      const p1 = (preferences & 1) === 0;
-      const p2 = (preferences & 2) === 0;
-      const p4 = (preferences & 4) === 0;
-      defaultData.ad_storage = p4 ? GRANTED : DENIED;
-      defaultData.analytics_storage = p2 ? GRANTED : DENIED;
-      defaultData.personalization_storage = p1 ? GRANTED : DENIED;
-      defaultData.functionality_storage = p1 ? GRANTED : DENIED;
-      
-      if (preferencesSet) {
-        dataLayerPush({
-          event: CUSTOM_GMT_EVENT,
-          pandectes_status: status,
-          pandectes_categories: {
-            C000: ALLOW,
-            C001: p1 ? ALLOW: DENY,
-            C002: p2 ? ALLOW : DENY,
-            C003: p4 ? ALLOW : DENY
-          }
-        });
-      }
+  if(settings && settings.length) {
+    const cookieValue = JSON.parse(fromBase64(settings[0]));
+    const output = getStorageFromPreferences(cookieValue.preferences, 'default');
+    if (output) {
+      defaultData.ad_storage = output.ad_storage;
+      defaultData.analytics_storage = output.analytics_storage;
+      defaultData.personalization_storage = output.personalization_storage;
+      defaultData.functionality_storage = output.functionality_storage;
     }
   }
   setDefaultConsentState(defaultData);
@@ -192,7 +233,8 @@ const main = (data) => {
   if ((defaultData.ad_storage === 'denied' || defaultData.analytics_storage === 'denied') && data.url_passthrough) {
     gtagSet('url_passthrough', true);
   }
-  
+  // onConsent
+  consentListenersPush(onUserConsent);
 };
 
 main(data);
@@ -260,6 +302,45 @@ ___WEB_PERMISSIONS___
                   {
                     "type": 1,
                     "string": "dataLayer"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "pandectesConsentListeners"
                   },
                   {
                     "type": 8,
