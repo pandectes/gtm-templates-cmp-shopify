@@ -16,5 +16,5 @@ homepage: "https://www.pandectes.io"
 documentation: "https://www.pandectes.io/documentation"
 versions:
   # latest version
-  - sha: 3b9651df7440df7669490bda2528331cc30271fe
+  - sha: e9c58c4b31e217fc2ce2c9f34e474a83a810a5d9
     changeNotes: Initial Version
