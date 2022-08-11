@@ -144,10 +144,13 @@ const GRANTED = 'granted';
 const DENIED = 'denied';
 const ALLOW = 'allow';
 const DENY = 'deny';
+const DEVELOPER_ID = 'dMTZkMj';
 
 const dataLayerPush = createQueue('dataLayer');
 const consentListenersPush = createQueue('pandectesConsentListeners');
 const isNil = (value) => value === null || value === undefined;
+
+gtagSet('developer_id.' + DEVELOPER_ID, true);
 
 const getStorageFromPreferences = (preferences, consentType) => {
   let output = null;
@@ -191,7 +194,6 @@ const getStorageFromPreferences = (preferences, consentType) => {
 };
 
 const onUserConsent = (config) => {
-  log(config);
   if (config.consentType === 'stored' || config.consentType === 'default') {
     return;
   }
