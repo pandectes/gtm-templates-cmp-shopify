@@ -16,5 +16,5 @@ homepage: "https://www.pandectes.io"
 documentation: "https://www.pandectes.io/documentation"
 versions:
   # latest version
-  - sha: 5e72fd4d3f53a9617c21389095df64b68869828d    
+  - sha: 826536a66deaf5e5ed7614852ff3a8ca11818309    
     changeNotes: add support for ad_user_data & ad_personalization
