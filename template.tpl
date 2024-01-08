@@ -32,7 +32,7 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "SELECT",
     "name": "ad_storage",
-    "displayName": "ad_storage",
+    "displayName": "ad_storage, ad_user_data, ad_personalization",
     "macrosInSelect": false,
     "selectItems": [
       {
