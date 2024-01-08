@@ -144,13 +144,13 @@ const GRANTED = 'granted';
 const DENIED = 'denied';
 const ALLOW = 'allow';
 const DENY = 'deny';
-const DEVELOPER_ID = 'dMTZkMj';
+// const DEVELOPER_ID = 'dMTZkMj';
 
 const dataLayerPush = createQueue('dataLayer');
 const consentListenersPush = createQueue('pandectesConsentListeners');
 const isNil = (value) => value === null || value === undefined;
 
-gtagSet('developer_id.' + DEVELOPER_ID, true);
+// gtagSet('developer_id.' + DEVELOPER_ID, true);
 
 const getStorageFromPreferences = (preferences, consentType) => {
   let output = null;
@@ -160,6 +160,8 @@ const getStorageFromPreferences = (preferences, consentType) => {
     const p4 = (preferences & 4) === 0;
     output = {
       ad_storage: p4 ? GRANTED : DENIED,
+      ad_user_data: p4 ? GRANTED : DENIED,
+      ad_personalization: p4 ? GRANTED : DENIED,
       analytics_storage: p2 ? GRANTED : DENIED,
       personalization_storage: p1 ? GRANTED : DENIED,
       functionality_storage: p1 ? GRANTED : DENIED
@@ -209,6 +211,8 @@ const main = (data) => {
   const defaultData = {
     security_storage: 'granted',
     ad_storage: data.ad_storage,
+    ad_personalization: data.ad_storage,
+    ad_user_data: data.ad_storage,
     analytics_storage: data.analytics_storage,
     functionality_storage: data.functionality_storage,
     personalization_storage: data.personalization_storage,
@@ -225,6 +229,8 @@ const main = (data) => {
     const output = getStorageFromPreferences(cookieValue.preferences, 'default');
     if (output) {
       defaultData.ad_storage = output.ad_storage;
+      defaultData.ad_user_data = output.ad_user_data;
+      defaultData.ad_personalization = output.ad_personalization;
       defaultData.analytics_storage = output.analytics_storage;
       defaultData.personalization_storage = output.personalization_storage;
       defaultData.functionality_storage = output.functionality_storage;
@@ -618,6 +624,68 @@ ___WEB_PERMISSIONS___
                   {
                     "type": 1,
                     "string": "wait_for_update"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "consentType"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "ad_user_data"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "consentType"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "ad_personalization"
                   },
                   {
                     "type": 8,
