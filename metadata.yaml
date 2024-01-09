@@ -13,7 +13,7 @@
 # limitations under the License.
 
 homepage: "https://www.pandectes.io"
-documentation: "https://www.pandectes.io/documentation"
+documentation: "https://www.pandectes.io/gtm-template"
 versions:
   # latest version
   - sha: 826536a66deaf5e5ed7614852ff3a8ca11818309    
