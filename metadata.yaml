@@ -16,5 +16,5 @@ homepage: "https://www.pandectes.io"
 documentation: "https://www.pandectes.io/gtm-template"
 versions:
   # latest version
-  - sha: 7aadde3c43e33be1f8bf69ace10de5a7dc1dc96e    
-    changeNotes: update brand name and description
+  - sha: bb079a3e6144adbb5f186d7ab321df3beb0358d3    
+    changeNotes: regional overrides plus update event always after default if cookie is present
