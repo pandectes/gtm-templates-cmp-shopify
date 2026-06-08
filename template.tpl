@@ -10,9 +10,8 @@ ___INFO___
 
 {
   "type": "TAG",
-  "id": "cvt_temp_public_id",
+  "id": "cvt_PHGJF",
   "version": 1,
-  "securityGroups": [],
   "displayName": "Pandectes CMP",
   "brand": {
     "id": "github.com_pandectes",
@@ -22,7 +21,8 @@ ___INFO___
   "description": "Consent Mode template for the Pandectes Consent Management Platform (CMP), build to integrate seamlessly with the popular Shopify App: Pandectes GDPR Compliance",
   "containerContexts": [
     "WEB"
-  ]
+  ],
+  "securityGroups": []
 }
 
 
@@ -290,12 +290,95 @@ const DENIED = 'denied';
 const ALLOW = 'allow';
 const DENY = 'deny';
 
-
-
-
 const dataLayerPush = createQueue('dataLayer');
 const consentListenersPush = createQueue('pandectesConsentListeners');
 const isNil = (value) => value === null || value === undefined;
+
+const expandRegionCodes = (inputString) => {
+  // 1. Define the EU, EEA & UK codes
+  var euEeaUk = [
+    'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 
+    'DE', 'GR', 'EL', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 
+    'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+    'IS', 'LI', 'NO', 'GB', 'UK'
+  ];
+
+  // 2. Define the MINIMUM US States (for 'US')
+  var usMinStates = [
+    'US-CA', 'US-CO', 'US-CT', 'US-DE', 'US-FL', 'US-IN', 'US-IA', 
+    'US-KY', 'US-MN', 'US-MT', 'US-NE', 'US-NH', 'US-NJ', 'US-OR', 
+    'US-RI', 'US-TN', 'US-TX', 'US-UT', 'US-VA'
+  ];
+
+  // 3. Define ALL US States + DC (for 'USALL')
+  var usAllStates = [
+    'US-AK', 'US-AL', 'US-AR', 'US-AZ', 'US-CA', 'US-CO', 'US-CT', 'US-DC', 
+    'US-DE', 'US-FL', 'US-GA', 'US-HI', 'US-IA', 'US-ID', 'US-IL', 'US-IN', 
+    'US-KS', 'US-KY', 'US-LA', 'US-MA', 'US-MD', 'US-ME', 'US-MI', 'US-MN', 
+    'US-MO', 'US-MS', 'US-MT', 'US-NC', 'US-ND', 'US-NE', 'US-NH', 'US-NJ', 
+    'US-NM', 'US-NV', 'US-NY', 'US-OH', 'US-OK', 'US-OR', 'US-PA', 'US-RI', 
+    'US-SC', 'US-SD', 'US-TN', 'US-TX', 'US-UT', 'US-VA', 'US-VT', 'US-WA', 
+    'US-WI', 'US-WV', 'US-WY'
+  ];
+
+  // Safety check for empty or missing inputs
+  if (!inputString) return '';
+
+  var rawCodes = inputString.split(',');
+  var initialCodes = [];
+  var hasEu = false;
+  var hasUsMin = false;
+  var hasUsAll = false;
+
+  // 4. Clean strings manually and look for tokens
+  for (var i = 0; i < rawCodes.length; i++) {
+    var cleanCode = rawCodes[i].trim().toUpperCase();
+    if (cleanCode === 'EU') {
+      hasEu = true;
+    } else if (cleanCode === 'USALL') {
+      hasUsAll = true;
+    } else if (cleanCode === 'US') {
+      hasUsMin = true;
+    } else if (cleanCode !== '') {
+      initialCodes.push(cleanCode);
+    }
+  }
+
+  // 5. Combine arrays based on flags
+  var combinedCodes = [];
+  for (var j = 0; j < initialCodes.length; j++) {
+    combinedCodes.push(initialCodes[j]);
+  }
+
+  if (hasEu) {
+    for (var k = 0; k < euEeaUk.length; k++) {
+      combinedCodes.push(euEeaUk[k]);
+    }
+  }
+
+  // If both 'US' and 'USALL' are somehow provided, 'USALL' wins out to prevent redundant arrays
+  if (hasUsAll) {
+    for (var l = 0; l < usAllStates.length; l++) {
+      combinedCodes.push(usAllStates[l]);
+    }
+  } else if (hasUsMin) {
+    for (var n = 0; n < usMinStates.length; n++) {
+      combinedCodes.push(usMinStates[n]);
+    }
+  }
+
+  // 6. Remove duplicates manually using .indexOf()
+  var uniqueCodes = [];
+  for (var m = 0; m < combinedCodes.length; m++) {
+    var code = combinedCodes[m];
+    if (uniqueCodes.indexOf(code) === -1) {
+      uniqueCodes.push(code);
+    }
+  }
+
+  // 7. Sort alphabetically and join back into a string
+  return uniqueCodes.sort().join(',');
+};
 
 const getStorageFromPreferences = (preferences, consentType) => {
   let output = null;
@@ -372,6 +455,7 @@ const main = (data) => {
   if (data.regional_settings && data.regional_settings.length) {
     data.regional_settings.forEach((region) => {
       if (region.code.trim().length) {
+        const codes = expandRegionCodes(region.code);
         const overrides = {
           security_storage: region.security_storage || 'granted',
           ad_storage: region.ad_storage,
@@ -381,7 +465,7 @@ const main = (data) => {
           functionality_storage: region.functionality_storage,
           personalization_storage: region.functionality_storage,
           wait_for_update: makeNumber(data.wait_for_update || 500),
-          region: region.code.split(',').map(a => a.trim())
+          region: codes.split(',').map(a => a.trim())
         };
         setDefaultConsentState(overrides);
       }
