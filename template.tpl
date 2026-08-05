@@ -380,56 +380,66 @@ const expandRegionCodes = (inputString) => {
   return uniqueCodes.sort().join(',');
 };
 
-const getStorageFromPreferences = (preferences, consentType) => {
-  let output = null;
-  if (!isNil(preferences)) {
-    const p1 = (preferences & 1) === 0;
-    const p2 = (preferences & 2) === 0;
-    const p4 = (preferences & 4) === 0;
-    output = {
-      ad_storage: p4 ? GRANTED : DENIED,
-      ad_user_data: p4 ? GRANTED : DENIED,
-      ad_personalization: p4 ? GRANTED : DENIED,
-      analytics_storage: p2 ? GRANTED : DENIED,
-      personalization_storage: p1 ? GRANTED : DENIED,
-      functionality_storage: p1 ? GRANTED : DENIED
-    };
-    
-    if (data.customEvent && (consentType === 'new' || consentType === 'revoke')) {
-      let eventStatus = consentType;
-      if (consentType === 'new') {
-        if (preferences === 7) {
-          eventStatus = 'deny';
-        } else if (preferences === 0) {
-          eventStatus = 'allow';
-        } else {
-          eventStatus = 'mixed';
-        }
-      }
-      dataLayerPush({
-        event: CUSTOM_GMT_EVENT,
-        pandectes_status: eventStatus,
-        pandectes_categories: {
-          C000: ALLOW,
-          C001: p1 ? ALLOW: DENY,
-          C002: p2 ? ALLOW : DENY,
-          C003: p4 ? ALLOW : DENY
-        }
-      });
-    }
-      
-    
+// --- Single Responsibility 1: Pure Preference Decoding ---
+const getStorageFromPreferences = (preferences) => {
+  if (isNil(preferences)) {
+    return null;
   }
-  return output;
+  const p1 = (preferences & 1) === 0;
+  const p2 = (preferences & 2) === 0;
+  const p4 = (preferences & 4) === 0;
+
+  return {
+    ad_storage: p4 ? GRANTED : DENIED,
+    ad_user_data: p4 ? GRANTED : DENIED,
+    ad_personalization: p4 ? GRANTED : DENIED,
+    analytics_storage: p2 ? GRANTED : DENIED,
+    personalization_storage: p1 ? GRANTED : DENIED,
+    functionality_storage: p1 ? GRANTED : DENIED
+  };
+};
+
+// --- Single Responsibility 2: DataLayer Custom Event Dispatcher ---
+const pushCustomConsentEvent = (preferences, consentType) => {
+  if (!data.customEvent) {
+    return;
+  }
+
+  const p1 = (preferences & 1) === 0;
+  const p2 = (preferences & 2) === 0;
+  const p4 = (preferences & 4) === 0;
+
+  let eventStatus;
+  if (preferences === 7) {
+    eventStatus = 'deny';
+  } else if (preferences === 0) {
+    eventStatus = 'allow';
+  } else {
+    eventStatus = 'mixed';
+  }
+  
+  dataLayerPush({
+    event: CUSTOM_GMT_EVENT,
+    pandectes_status: eventStatus,
+    pandectes_action: consentType,
+    pandectes_categories: {
+      C000: ALLOW,
+      C001: p1 ? ALLOW : DENY,
+      C002: p2 ? ALLOW : DENY,
+      C003: p4 ? ALLOW : DENY
+    }
+  });
 };
 
 const onUserConsent = (config) => {
   if (config.consentType === 'stored' || config.consentType === 'default') {
     return;
   }
-  const consentModeStates = getStorageFromPreferences(config.preferences, config.consentType);
+  
+  const consentModeStates = getStorageFromPreferences(config.preferences);
   if (consentModeStates) {
     updateConsentState(consentModeStates);
+    pushCustomConsentEvent(config.preferences, config.consentType);
   }
 };
 
@@ -452,6 +462,7 @@ const main = (data) => {
     wait_for_update: makeNumber(data.wait_for_update || 500)
   };
   setDefaultConsentState(globalSettings);
+
   if (data.regional_settings && data.regional_settings.length) {
     data.regional_settings.forEach((region) => {
       if (region.code.trim().length) {
@@ -472,23 +483,17 @@ const main = (data) => {
     });
   } 
 
-  const updateData = {};
   const settings = getCookieValues(COOKIE_NAME);
-  if(settings && settings.length) {
+  if (settings && settings.length) {
     const cookieValue = JSON.parse(fromBase64(settings[0]));
-    const output = getStorageFromPreferences(cookieValue.preferences, 'update');
+    const output = getStorageFromPreferences(cookieValue.preferences);
     if (output) {
-      updateData.ad_storage = output.ad_storage;
-      updateData.ad_user_data = output.ad_user_data;
-      updateData.ad_personalization = output.ad_personalization;
-      updateData.analytics_storage = output.analytics_storage;
-      updateData.personalization_storage = output.personalization_storage;
-      updateData.functionality_storage = output.functionality_storage;
-      updateConsentState(updateData);
+      updateConsentState(output);
+      pushCustomConsentEvent(cookieValue.preferences, 'stored');
     }
   }
   
-  // onConsent
+  // onConsent listener setup
   consentListenersPush(onUserConsent);
 };
 
