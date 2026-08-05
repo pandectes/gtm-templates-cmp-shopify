@@ -16,5 +16,5 @@ homepage: "https://www.pandectes.io"
 documentation: "https://www.pandectes.io/gtm-template"
 versions:
   # latest version
-  - sha: 64aa981a4fe0152b09bec79a85f491a773e03494
+  - sha: 57286200de0aa13c63e8b546413f7f6178cf7bb3
     changeNotes: regions support shortcuts EU for EU/EEA & UK, US for minimum states and USALL for all US states
