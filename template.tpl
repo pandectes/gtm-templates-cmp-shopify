@@ -461,13 +461,13 @@ const main = (data) => {
     personalization_storage: data.functionality_storage,
     wait_for_update: makeNumber(data.wait_for_update || 500)
   };
-  setDefaultConsentState(globalSettings);
 
+  const regionalOverrides = [];
   if (data.regional_settings && data.regional_settings.length) {
     data.regional_settings.forEach((region) => {
       if (region.code.trim().length) {
         const codes = expandRegionCodes(region.code);
-        const overrides = {
+        regionalOverrides.push({
           security_storage: region.security_storage || 'granted',
           ad_storage: region.ad_storage,
           ad_personalization: region.ad_storage,
@@ -477,11 +477,16 @@ const main = (data) => {
           personalization_storage: region.functionality_storage,
           wait_for_update: makeNumber(data.wait_for_update || 500),
           region: codes.split(',').map(a => a.trim())
-        };
-        setDefaultConsentState(overrides);
+        });
       }
     });
-  } 
+  }
+
+  // Region-scoped defaults must be declared before the global default
+  regionalOverrides.forEach((overrides) => {
+    setDefaultConsentState(overrides);
+  });
+  setDefaultConsentState(globalSettings);
 
   const settings = getCookieValues(COOKIE_NAME);
   if (settings && settings.length) {
