@@ -517,7 +517,7 @@ const main = (data) => {
     if (output) {
       updateConsentState(output);
       if (data.debugMode) {  
-        log('pandectes: consent update');
+        log('pandectes-gtm: consent update');
         log(output);
       }
       pushCustomConsentEvent(cookieValue.preferences, 'stored');
