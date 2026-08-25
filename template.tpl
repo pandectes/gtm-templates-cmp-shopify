@@ -263,6 +263,12 @@ ___TEMPLATE_PARAMETERS___
         "name": "customEvent",
         "checkboxText": "Pandectes custom event",
         "simpleValueType": true
+      },
+      {
+        "type": "CHECKBOX",
+        "name": "debugMode",
+        "checkboxText": "Debug mode (logs default/update commands)",
+        "simpleValueType": true
       }
     ]
   }
@@ -293,6 +299,10 @@ const DENY = 'deny';
 const dataLayerPush = createQueue('dataLayer');
 const consentListenersPush = createQueue('pandectesConsentListeners');
 const isNil = (value) => value === null || value === undefined;
+
+if (data.debugMode) { 
+  log('pandectes-gtm: loading Pandectes CMP tag');
+}
 
 const expandRegionCodes = (inputString) => {
   // 1. Define the EU, EEA & UK codes
@@ -439,6 +449,10 @@ const onUserConsent = (config) => {
   const consentModeStates = getStorageFromPreferences(config.preferences);
   if (consentModeStates) {
     updateConsentState(consentModeStates);
+    if (data.debugMode) {  
+      log('pandectes-gtm: consent update');
+      log(consentModeStates);
+    }
     pushCustomConsentEvent(config.preferences, config.consentType);
   }
 };
@@ -485,15 +499,27 @@ const main = (data) => {
   // Region-scoped defaults must be declared before the global default
   regionalOverrides.forEach((overrides) => {
     setDefaultConsentState(overrides);
+    if (data.debugMode) { 
+      log('pandectes-gtm: consent default - regional overrides');
+      log(globalSettings);
+    }
   });
   setDefaultConsentState(globalSettings);
-
+  if (data.debugMode) { 
+    log('pandectes-gtm: consent default');
+    log(globalSettings);
+  }
+  
   const settings = getCookieValues(COOKIE_NAME);
   if (settings && settings.length) {
     const cookieValue = JSON.parse(fromBase64(settings[0]));
     const output = getStorageFromPreferences(cookieValue.preferences);
     if (output) {
       updateConsentState(output);
+      if (data.debugMode) {  
+        log('pandectes: consent update');
+        log(output);
+      }
       pushCustomConsentEvent(cookieValue.preferences, 'stored');
     }
   }
@@ -521,7 +547,7 @@ ___WEB_PERMISSIONS___
           "key": "environments",
           "value": {
             "type": 1,
-            "string": "debug"
+            "string": "all"
           }
         }
       ]
