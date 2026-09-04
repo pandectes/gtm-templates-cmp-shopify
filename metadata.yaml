@@ -16,5 +16,5 @@ homepage: "https://www.pandectes.io"
 documentation: "https://www.pandectes.io/gtm-template"
 versions:
   # latest version
-  - sha: 6cb916a91124228ff151ba7daaa5ea52619a05e1
-    changeNotes: debug mode feature allows logging messages to the console ubout default/update commands
+  - sha: e7c489008acb07b919998ff703b899c43f95e068
+    changeNotes: Support direct integration with Shopify Customer Privacy API when running inside pixel.
