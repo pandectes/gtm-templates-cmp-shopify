@@ -278,63 +278,185 @@ ___TEMPLATE_PARAMETERS___
 ___SANDBOXED_JS_FOR_WEB_TEMPLATE___
 
 // Enter your template code here.
-const log = require('logToConsole');
+const log = require("logToConsole");
 // log('data =', data);
 
-const setDefaultConsentState = require('setDefaultConsentState');
-const updateConsentState = require('updateConsentState');
-const getCookieValues = require('getCookieValues');
-const gtagSet = require('gtagSet');
-const fromBase64 = require('fromBase64');
-const JSON = require('JSON');
-const makeNumber = require('makeNumber');
-const COOKIE_NAME = '_pandectes_gdpr';
-const createQueue = require('createQueue');
-const CUSTOM_GMT_EVENT = 'Pandectes_Consent_Update';
-const GRANTED = 'granted';
-const DENIED = 'denied';
-const ALLOW = 'allow';
-const DENY = 'deny';
+const setDefaultConsentState = require("setDefaultConsentState");
+const updateConsentState = require("updateConsentState");
+const getCookieValues = require("getCookieValues");
+const gtagSet = require("gtagSet");
+const fromBase64 = require("fromBase64");
+const JSON = require("JSON");
+const makeNumber = require("makeNumber");
+const copyFromWindow = require("copyFromWindow");
+const callInWindow = require("callInWindow");
+const COOKIE_NAME = "_pandectes_gdpr";
+const createQueue = require("createQueue");
+const CUSTOM_GMT_EVENT = "Pandectes_Consent_Update";
+const GRANTED = "granted";
+const DENIED = "denied";
+const ALLOW = "allow";
+const DENY = "deny";
+const ARTICLE_URL =
+  "https://help.pandectes.io/en/article/integration-with-google-tag-manager-gtm-official-pandectes-template-6dbjz/";
 
-const dataLayerPush = createQueue('dataLayer');
-const consentListenersPush = createQueue('pandectesConsentListeners');
+const dataLayerPush = createQueue("dataLayer");
+const consentListenersPush = createQueue("pandectesConsentListeners");
 const isNil = (value) => value === null || value === undefined;
 
-if (data.debugMode) { 
-  log('pandectes-gtm: loading Pandectes CMP tag');
+const ENV_PIXEL = "pixel";
+const ENV_STOREFRONT = "storefront";
+
+// Shopify Web Pixels exposes `init` inside the custom-pixel sandbox. The custom
+// pixel must bridge it first (window.pandectesPixelInit = init), because GTM can
+// only read true window globals. Shape is validated because storefront themes
+// commonly define an unrelated `init` global.
+const getPixelInit = () => {
+  const candidate =
+    copyFromWindow("pandectesPixelInit") || copyFromWindow("init");
+  if (isNil(candidate) || isNil(candidate.context) || isNil(candidate.data)) {
+    return null;
+  }
+  return candidate;
+};
+
+const pixelInit = getPixelInit();
+const environment = pixelInit ? ENV_PIXEL : ENV_STOREFRONT;
+
+// The custom pixel bridges the Web Pixels APIs onto window:
+//   window.pandectesPixelInit = init;
+//   window.pandectesSubscribe = (topic, cb) => customerPrivacy.subscribe(topic, cb);
+// Functions do not survive copyFromWindow, so pandectesSubscribe cannot be
+// probed directly. The bridged init stands in as the presence check, and the
+// subscribe call itself goes through callInWindow.
+const pixelBridged =
+  environment === ENV_PIXEL && !isNil(copyFromWindow("pandectesPixelInit"));
+
+if (data.debugMode) {
+  log("Pandectes CMP (GTM): loaded successfully");
+  log("Pandectes CMP (GTM): for setup read ", ARTICLE_URL);
 }
 
 const expandRegionCodes = (inputString) => {
   // 1. Define the EU, EEA & UK codes
   var euEeaUk = [
-    'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 
-    'DE', 'GR', 'EL', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 
-    'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
-    'IS', 'LI', 'NO', 'GB', 'UK'
+    "AT",
+    "BE",
+    "BG",
+    "HR",
+    "CY",
+    "CZ",
+    "DK",
+    "EE",
+    "FI",
+    "FR",
+    "DE",
+    "GR",
+    "EL",
+    "HU",
+    "IE",
+    "IT",
+    "LV",
+    "LT",
+    "LU",
+    "MT",
+    "NL",
+    "PL",
+    "PT",
+    "RO",
+    "SK",
+    "SI",
+    "ES",
+    "SE",
+    "IS",
+    "LI",
+    "NO",
+    "GB",
+    "UK",
   ];
 
   // 2. Define the MINIMUM US States (for 'US')
   var usMinStates = [
-    'US-CA', 'US-CO', 'US-CT', 'US-DE', 'US-FL', 'US-IN', 'US-IA', 
-    'US-KY', 'US-MN', 'US-MT', 'US-NE', 'US-NH', 'US-NJ', 'US-OR', 
-    'US-RI', 'US-TN', 'US-TX', 'US-UT', 'US-VA'
+    "US-CA",
+    "US-CO",
+    "US-CT",
+    "US-DE",
+    "US-FL",
+    "US-IN",
+    "US-IA",
+    "US-KY",
+    "US-MN",
+    "US-MT",
+    "US-NE",
+    "US-NH",
+    "US-NJ",
+    "US-OR",
+    "US-RI",
+    "US-TN",
+    "US-TX",
+    "US-UT",
+    "US-VA",
   ];
 
   // 3. Define ALL US States + DC (for 'USALL')
   var usAllStates = [
-    'US-AK', 'US-AL', 'US-AR', 'US-AZ', 'US-CA', 'US-CO', 'US-CT', 'US-DC', 
-    'US-DE', 'US-FL', 'US-GA', 'US-HI', 'US-IA', 'US-ID', 'US-IL', 'US-IN', 
-    'US-KS', 'US-KY', 'US-LA', 'US-MA', 'US-MD', 'US-ME', 'US-MI', 'US-MN', 
-    'US-MO', 'US-MS', 'US-MT', 'US-NC', 'US-ND', 'US-NE', 'US-NH', 'US-NJ', 
-    'US-NM', 'US-NV', 'US-NY', 'US-OH', 'US-OK', 'US-OR', 'US-PA', 'US-RI', 
-    'US-SC', 'US-SD', 'US-TN', 'US-TX', 'US-UT', 'US-VA', 'US-VT', 'US-WA', 
-    'US-WI', 'US-WV', 'US-WY'
+    "US-AK",
+    "US-AL",
+    "US-AR",
+    "US-AZ",
+    "US-CA",
+    "US-CO",
+    "US-CT",
+    "US-DC",
+    "US-DE",
+    "US-FL",
+    "US-GA",
+    "US-HI",
+    "US-IA",
+    "US-ID",
+    "US-IL",
+    "US-IN",
+    "US-KS",
+    "US-KY",
+    "US-LA",
+    "US-MA",
+    "US-MD",
+    "US-ME",
+    "US-MI",
+    "US-MN",
+    "US-MO",
+    "US-MS",
+    "US-MT",
+    "US-NC",
+    "US-ND",
+    "US-NE",
+    "US-NH",
+    "US-NJ",
+    "US-NM",
+    "US-NV",
+    "US-NY",
+    "US-OH",
+    "US-OK",
+    "US-OR",
+    "US-PA",
+    "US-RI",
+    "US-SC",
+    "US-SD",
+    "US-TN",
+    "US-TX",
+    "US-UT",
+    "US-VA",
+    "US-VT",
+    "US-WA",
+    "US-WI",
+    "US-WV",
+    "US-WY",
   ];
 
   // Safety check for empty or missing inputs
-  if (!inputString) return '';
+  if (!inputString) return "";
 
-  var rawCodes = inputString.split(',');
+  var rawCodes = inputString.split(",");
   var initialCodes = [];
   var hasEu = false;
   var hasUsMin = false;
@@ -343,13 +465,13 @@ const expandRegionCodes = (inputString) => {
   // 4. Clean strings manually and look for tokens
   for (var i = 0; i < rawCodes.length; i++) {
     var cleanCode = rawCodes[i].trim().toUpperCase();
-    if (cleanCode === 'EU') {
+    if (cleanCode === "EU") {
       hasEu = true;
-    } else if (cleanCode === 'USALL') {
+    } else if (cleanCode === "USALL") {
       hasUsAll = true;
-    } else if (cleanCode === 'US') {
+    } else if (cleanCode === "US") {
       hasUsMin = true;
-    } else if (cleanCode !== '') {
+    } else if (cleanCode !== "") {
       initialCodes.push(cleanCode);
     }
   }
@@ -387,7 +509,7 @@ const expandRegionCodes = (inputString) => {
   }
 
   // 7. Sort alphabetically and join back into a string
-  return uniqueCodes.sort().join(',');
+  return uniqueCodes.sort().join(",");
 };
 
 // --- Single Responsibility 1: Pure Preference Decoding ---
@@ -405,8 +527,46 @@ const getStorageFromPreferences = (preferences) => {
     ad_personalization: p4 ? GRANTED : DENIED,
     analytics_storage: p2 ? GRANTED : DENIED,
     personalization_storage: p1 ? GRANTED : DENIED,
-    functionality_storage: p1 ? GRANTED : DENIED
+    functionality_storage: p1 ? GRANTED : DENIED,
   };
+};
+
+// --- Stored consent sources (preferences bitmask: set bit === denied) ---
+// bit 1 -> functionality / personalization, bit 2 -> analytics, bit 4 -> ads
+const getPreferencesFromCookie = () => {
+  const settings = getCookieValues(COOKIE_NAME);
+  if (!settings || !settings.length) {
+    return null;
+  }
+  const decoded = fromBase64(settings[0]);
+  if (isNil(decoded)) {
+    return null;
+  }
+  const cookieValue = JSON.parse(decoded);
+  if (isNil(cookieValue) || isNil(cookieValue.preferences)) {
+    return null;
+  }
+
+  return cookieValue.preferences;
+};
+
+// In the pixel sandbox the _pandectes_gdpr cookie lives on another origin and is
+// unreadable, so init.customerPrivacy is the stored-consent source instead.
+const getPreferencesFromCustomerPrivacy = (customerPrivacy) => {
+  if (isNil(customerPrivacy)) {
+    return null;
+  }
+  let preferences = 0;
+  if (!customerPrivacy.preferencesProcessingAllowed) {
+    preferences = preferences + 1;
+  }
+  if (!customerPrivacy.analyticsProcessingAllowed) {
+    preferences = preferences + 2;
+  }
+  if (!customerPrivacy.marketingAllowed) {
+    preferences = preferences + 4;
+  }
+  return preferences;
 };
 
 // --- Single Responsibility 2: DataLayer Custom Event Dispatcher ---
@@ -421,13 +581,13 @@ const pushCustomConsentEvent = (preferences, consentType) => {
 
   let eventStatus;
   if (preferences === 7) {
-    eventStatus = 'deny';
+    eventStatus = "deny";
   } else if (preferences === 0) {
-    eventStatus = 'allow';
+    eventStatus = "allow";
   } else {
-    eventStatus = 'mixed';
+    eventStatus = "mixed";
   }
-  
+
   dataLayerPush({
     event: CUSTOM_GMT_EVENT,
     pandectes_status: eventStatus,
@@ -436,44 +596,61 @@ const pushCustomConsentEvent = (preferences, consentType) => {
       C000: ALLOW,
       C001: p1 ? ALLOW : DENY,
       C002: p2 ? ALLOW : DENY,
-      C003: p4 ? ALLOW : DENY
-    }
+      C003: p4 ? ALLOW : DENY,
+    },
   });
 };
 
-const onUserConsent = (config) => {
-  if (config.consentType === 'stored' || config.consentType === 'default') {
+// Single place where a preferences bitmask becomes a consent-mode update.
+const applyPreferences = (preferences, consentType) => {
+  const consentModeStates = getStorageFromPreferences(preferences);
+  if (isNil(consentModeStates)) {
     return;
   }
-  
-  const consentModeStates = getStorageFromPreferences(config.preferences);
-  if (consentModeStates) {
-    updateConsentState(consentModeStates);
-    if (data.debugMode) {  
-      log('pandectes-gtm: consent update');
-      log(consentModeStates);
-    }
-    pushCustomConsentEvent(config.preferences, config.consentType);
+  updateConsentState(consentModeStates);
+  if (data.debugMode) {
+    log("Pandectes CMP (GTM): consent update", consentModeStates);
   }
+  pushCustomConsentEvent(preferences, consentType);
+};
+
+// Storefront: invoked by the Pandectes CMP via the pandectesConsentListeners queue.
+const onUserConsent = (config) => {
+  if (config.consentType === "stored" || config.consentType === "default") {
+    return;
+  }
+  applyPreferences(config.preferences, config.consentType);
+};
+
+// Pixel: invoked by Shopify on the customerPrivacy 'visitorConsentCollected' event.
+const onVisitorConsentCollected = (event) => {
+  if (isNil(event)) {
+    return;
+  }
+  const preferences = getPreferencesFromCustomerPrivacy(event.customerPrivacy);
+  if (isNil(preferences)) {
+    return;
+  }
+  applyPreferences(preferences, "update");
 };
 
 const main = (data) => {
   // Set default consent state(s)
   gtagSet({
-    'developer_id.dMTZkMj': true,
-    'ads_data_redaction': !!data.ads_data_redaction,
-    'url_passthrough': !!data.url_passthrough
+    "developer_id.dMTZkMj": true,
+    ads_data_redaction: !!data.ads_data_redaction,
+    url_passthrough: !!data.url_passthrough,
   });
-  
+
   const globalSettings = {
-    security_storage: data.security_storage || 'granted',
+    security_storage: data.security_storage || "granted",
     ad_storage: data.ad_storage,
     ad_personalization: data.ad_storage,
     ad_user_data: data.ad_storage,
     analytics_storage: data.analytics_storage,
     functionality_storage: data.functionality_storage,
     personalization_storage: data.functionality_storage,
-    wait_for_update: makeNumber(data.wait_for_update || 500)
+    wait_for_update: makeNumber(data.wait_for_update || 500),
   };
 
   const regionalOverrides = [];
@@ -482,7 +659,7 @@ const main = (data) => {
       if (region.code.trim().length) {
         const codes = expandRegionCodes(region.code);
         regionalOverrides.push({
-          security_storage: region.security_storage || 'granted',
+          security_storage: region.security_storage || "granted",
           ad_storage: region.ad_storage,
           ad_personalization: region.ad_storage,
           ad_user_data: region.ad_storage,
@@ -490,7 +667,7 @@ const main = (data) => {
           functionality_storage: region.functionality_storage,
           personalization_storage: region.functionality_storage,
           wait_for_update: makeNumber(data.wait_for_update || 500),
-          region: codes.split(',').map(a => a.trim())
+          region: codes.split(",").map((a) => a.trim()),
         });
       }
     });
@@ -499,33 +676,29 @@ const main = (data) => {
   // Region-scoped defaults must be declared before the global default
   regionalOverrides.forEach((overrides) => {
     setDefaultConsentState(overrides);
-    if (data.debugMode) { 
-      log('pandectes-gtm: consent default - regional overrides');
-      log(globalSettings);
+    if (data.debugMode) {
+      log("Pandectes CMP (GTM): consent default - regional overrides", overrides);
     }
   });
   setDefaultConsentState(globalSettings);
-  if (data.debugMode) { 
-    log('pandectes-gtm: consent default');
-    log(globalSettings);
+  if (data.debugMode) {
+    log("Pandectes CMP (GTM): consent default", globalSettings);
   }
-  
-  const settings = getCookieValues(COOKIE_NAME);
-  if (settings && settings.length) {
-    const cookieValue = JSON.parse(fromBase64(settings[0]));
-    const output = getStorageFromPreferences(cookieValue.preferences);
-    if (output) {
-      updateConsentState(output);
-      if (data.debugMode) {  
-        log('pandectes-gtm: consent update');
-        log(output);
-      }
-      pushCustomConsentEvent(cookieValue.preferences, 'stored');
-    }
+
+  const storedPreferences =
+    environment === ENV_PIXEL ? getPreferencesFromCustomerPrivacy(pixelInit.customerPrivacy) : getPreferencesFromCookie();
+  if (!isNil(storedPreferences)) {
+    applyPreferences(storedPreferences, "stored");
   }
-  
+
   // onConsent listener setup
-  consentListenersPush(onUserConsent);
+  if (environment === ENV_PIXEL) {
+    if (pixelBridged) {
+      callInWindow("pandectesSubscribe", "visitorConsentCollected", onVisitorConsentCollected);
+    }
+  } else {
+    consentListenersPush(onUserConsent);
+  }
 };
 
 main(data);
@@ -644,6 +817,123 @@ ___WEB_PERMISSIONS___
                   {
                     "type": 8,
                     "boolean": false
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "init"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "pandectesPixelInit"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "key"
+                  },
+                  {
+                    "type": 1,
+                    "string": "read"
+                  },
+                  {
+                    "type": 1,
+                    "string": "write"
+                  },
+                  {
+                    "type": 1,
+                    "string": "execute"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "pandectesSubscribe"
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": false
+                  },
+                  {
+                    "type": 8,
+                    "boolean": true
                   }
                 ]
               }
